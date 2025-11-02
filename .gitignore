@@ -1,0 +1,16 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+node_modules
+.turbo
+.pnpm-store
+.next
+dist
+build
+coverage
+.DS_Store
+*.log
+.env
+.env.local
+.env.production
+.env.test
+test-results

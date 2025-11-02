@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+enum FacilityStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum FacilityCategory {
+  HEAD
+  BRANCH
+  WAREHOUSE
+  STORE
+  OTHER
+}
+
+model User {
+  id          String     @id @default(uuid())
+  email       String     @unique
+  name        String
+  nameKana    String?
+  role        Role       @default(USER)
+  status      UserStatus @default(INVITED)
+  phoneNumber String?
+  department  String?
+  title       String?
+  image       String?
+  note        String?
+  lastLoginAt DateTime?
+  mfaEnabled  Boolean    @default(false)
+  isLocked    Boolean    @default(false)
+  createdBy   String?
+  updatedBy   String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  accounts  Account[]
+  sessions  Session[]
+  auditLogs AuditLog[] @relation("AuditTarget")
+  actorLogs AuditLog[] @relation("AuditActor")
+}
+
+model Facility {
+  id           String           @id @default(uuid())
+  code         String           @unique
+  name         String
+  nameKana     String?
+  category     FacilityCategory
+  status       FacilityStatus   @default(ACTIVE)
+  startDate    DateTime?
+  endDate      DateTime?
+  country      String?          @default("JP")
+  prefecture   String?
+  city         String?
+  addressLine1 String?
+  postalCode   String?
+  latitude     Float?
+  longitude    Float?
+  phoneNumber  String?
+  email        String?
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+  capacity     Int?
+  note         String?
+  imageUrl     String?
+  syncedAt     DateTime?
+  createdBy    String?
+  updatedBy    String?
+  isIntegrated Boolean          @default(false)
+  displayOrder Int?
+  billingCode  String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  actorId   String?
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user  User? @relation("AuditTarget", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+}
+
+/// NextAuth.js tables
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

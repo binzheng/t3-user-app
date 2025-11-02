@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: docker.io/library/postgres:15-alpine
+    container_name: t3-user-app-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: t3user
+      POSTGRES_PASSWORD: t3pass
+      POSTGRES_DB: t3_user_app
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U t3user -d t3_user_app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
