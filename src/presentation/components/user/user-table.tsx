@@ -151,7 +151,7 @@ export const UserTable = () => {
         <Stack spacing={2}>
           <Stack direction="row" justifyContent="space-between" alignItems="center">
             <Typography variant="h5" component="h2">
-              ユーザー一覧001
+              ユーザー一覧
             </Typography>
             <Stack direction="row" spacing={1}>
               <Button variant="outlined" startIcon={<RefreshIcon />} onClick={() => refetch()} disabled={isFetching}>
