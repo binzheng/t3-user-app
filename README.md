@@ -35,5 +35,6 @@ pnpm dev:server       # 独立した Fastify + tRPC サーバーを起動（外�
   - `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` – Vercel CLI 用の認証情報。
   - `NEON_DATABASE_URL` – Neon の接続文字列（マイグレーション実行用。`sslmode=require` を付けてください）。
   - `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_API_URL`（任意）– NextAuth / フロントエンド用の環境変数。
+- Prisma Client は `postinstall` フックで再生成するように設定済みです（Vercel などのキャッシュ環境で古い Client が残らないようにするため）。CI でも `pnpm prisma generate` を明示的に実行します。
 - Neon を利用する場合は「Branch > Connection String」からダイレクト接続用の URI をコピーし、上記 `NEON_DATABASE_URL` に設定してください。プール接続を使う場合は `?sslmode=require` を付与したダイレクト接続文字列を推奨します。
 - ワークフローは `workflow_dispatch` にも対応しているので、GitHub Actions から手動実行することも可能です。

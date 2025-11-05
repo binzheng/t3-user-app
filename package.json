@@ -17,6 +17,7 @@
     "db:up": "podman-compose -f docker/docker-compose.yml up -d",
     "db:down": "podman-compose -f docker/docker-compose.yml down",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "postinstall": "pnpm prisma:generate",
     "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
     "prisma:studio": "prisma studio --schema prisma/schema.prisma",
     "seed:users": "tsx scripts/seed-users.ts"
@@ -56,7 +57,8 @@
     "@types/react-dom": "^18.3.0",
     "@types/jsdom": "^21.1.7",
     "cross-env": "^7.0.3",
-    "eslint": "^9.9.0",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.4",
     "prisma": "5.18.0",
     "jsdom": "^24.0.0",
     "tsx": "^4.16.2",
