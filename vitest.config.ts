@@ -11,6 +11,10 @@ export default defineConfig({
     environmentMatchGlobs: [["tests/frontend/**", "jsdom"]],
     setupFiles: ["./vitest.setup.ts"]
   },
+  esbuild: {
+    jsx: "automatic",
+    jsxImportSource: "react"
+  },
   resolve: {
     alias: {
       "@/app": resolveFromRoot("src/app"),
