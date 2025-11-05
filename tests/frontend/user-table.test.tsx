@@ -92,6 +92,7 @@ describe("UserTable component", () => {
 
     const createMock = vi.fn().mockReturnValue({
       mutate: vi.fn(),
+      mutateAsync: vi.fn(),
       isLoading: false,
       isError: false,
       error: null
@@ -99,6 +100,7 @@ describe("UserTable component", () => {
 
     const updateMock = vi.fn().mockReturnValue({
       mutate: vi.fn(),
+      mutateAsync: vi.fn(),
       isLoading: false,
       isError: false,
       error: null
@@ -147,9 +149,10 @@ describe("UserTable component", () => {
 
   it("opens create dialog and submits", async () => {
     const { createMock } = setupTrpcMocks();
-    const mutateSpy = vi.fn();
+    const mutateSpy = vi.fn().mockResolvedValue(undefined);
     createMock.mockReturnValue({
-      mutate: mutateSpy,
+      mutate: vi.fn(),
+      mutateAsync: mutateSpy,
       isLoading: false,
       isError: false,
       error: null
@@ -190,9 +193,10 @@ describe("UserTable component", () => {
 
   it("opens edit dialog and submits update", async () => {
     const { listMock, updateMock } = setupTrpcMocks();
-    const mutateSpy = vi.fn();
+    const mutateSpy = vi.fn().mockResolvedValue(undefined);
     updateMock.mockReturnValue({
-      mutate: mutateSpy,
+      mutate: vi.fn(),
+      mutateAsync: mutateSpy,
       isLoading: false,
       isError: false,
       error: null

@@ -9,16 +9,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest --run",
-    "test:frontend": "vitest --run tests/frontend",
-    "test:backend": "vitest --run tests/backend",
+    "test": "NODE_ENV=test vitest --run",
+    "test:frontend": "NODE_ENV=test vitest --run tests/frontend",
+    "test:backend": "NODE_ENV=test vitest --run tests/backend",
     "test:e2e": "playwright test",
     "test:backend:debug": "cross-env NODE_OPTIONS=--inspect-brk vitest --no-file-parallelism --run tests/backend",
     "db:up": "podman-compose -f docker/docker-compose.yml up -d",
     "db:down": "podman-compose -f docker/docker-compose.yml down",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
-    "prisma:studio": "prisma studio --schema prisma/schema.prisma"
+    "prisma:studio": "prisma studio --schema prisma/schema.prisma",
+    "seed:users": "tsx scripts/seed-users.ts"
   },
   "dependencies": {
     "@playwright/test": "^1.47.1",

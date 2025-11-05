@@ -5,7 +5,7 @@ import { ListUsersUseCase } from "@/server/application/use-cases/user/list-users
 import { UpdateUserUseCase } from "@/server/application/use-cases/user/update-user";
 import { DeleteUserUseCase } from "@/server/application/use-cases/user/delete-user";
 import { createTRPCRouter, publicProcedure } from "../trpc";
-import { TRPCError } from "@trpc/server";
+import { handleUseCaseError } from "../utils/error-handler";
 
 const roleEnum = z.enum(Object.values(USER_ROLES) as [UserRole, ...UserRole[]]);
 const statusEnum = z.enum(Object.values(USER_STATUSES) as [UserStatus, ...UserStatus[]]);
@@ -102,10 +102,18 @@ const updateUserSchema = z
     path: ["name"]
   });
 
+const listUsersSchema = z.object({
+  keyword: z.string().optional(),
+  role: z.union([z.literal("ALL"), roleEnum]).optional()
+});
+
 export const userRouter = createTRPCRouter({
-  list: publicProcedure.query(async ({ ctx }) => {
+  list: publicProcedure.input(listUsersSchema).query(async ({ ctx, input }) => {
     const useCase = new ListUsersUseCase(ctx.userRepo);
-    const users = await useCase.execute();
+    const users = await useCase.execute({
+      keyword: input.keyword,
+      role: input.role === "ALL" ? undefined : input.role
+    });
     return users;
   }),
 
@@ -127,10 +135,7 @@ export const userRouter = createTRPCRouter({
         isLocked: input.isLocked ?? undefined
       });
     } catch (error) {
-      if (error instanceof Error && error.message === "EMAIL_ALREADY_EXISTS") {
-        throw new TRPCError({ code: "CONFLICT", message: "同じメールアドレスのユーザーが既に存在します" });
-      }
-      throw error;
+      handleUseCaseError(error);
     }
   }),
 
@@ -151,10 +156,7 @@ export const userRouter = createTRPCRouter({
         isLocked: input.isLocked === undefined ? undefined : input.isLocked
       });
     } catch (error) {
-      if (error instanceof Error && error.message === "USER_NOT_FOUND") {
-        throw new TRPCError({ code: "NOT_FOUND", message: "ユーザーが見つかりません" });
-      }
-      throw error;
+      handleUseCaseError(error);
     }
   }),
 
@@ -164,10 +166,7 @@ export const userRouter = createTRPCRouter({
       await useCase.execute(input.id);
       return { success: true } as const;
     } catch (error) {
-      if (error instanceof Error && error.message === "USER_NOT_FOUND") {
-        throw new TRPCError({ code: "NOT_FOUND", message: "ユーザーが見つかりません" });
-      }
-      throw error;
+      handleUseCaseError(error);
     }
   })
 });

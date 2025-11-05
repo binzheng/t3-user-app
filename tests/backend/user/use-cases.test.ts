@@ -3,14 +3,15 @@ import { describe, it, expect, beforeEach } from "vitest";
 import type {
   CreateUserInput,
   UpdateUserInput,
-  UserRepository
+  UserRepository,
+  SearchUsersInput
 } from "@/server/application/ports/user-repository";
 import type { User } from "@/domain/entities/user";
 import { USER_ROLES, USER_STATUSES } from "@/domain/entities/user";
-import { CreateUserUseCase } from "@/server/application/use-cases/create-user";
-import { UpdateUserUseCase } from "@/server/application/use-cases/update-user";
-import { DeleteUserUseCase } from "@/server/application/use-cases/delete-user";
-import { ListUsersUseCase } from "@/server/application/use-cases/list-users";
+import { CreateUserUseCase } from "@/server/application/use-cases/user/create-user";
+import { UpdateUserUseCase } from "@/server/application/use-cases/user/update-user";
+import { DeleteUserUseCase } from "@/server/application/use-cases/user/delete-user";
+import { ListUsersUseCase } from "@/server/application/use-cases/user/list-users";
 
 class InMemoryUserRepository implements UserRepository {
   private users: User[] = [];
@@ -25,6 +26,26 @@ class InMemoryUserRepository implements UserRepository {
 
   async findAll(): Promise<User[]> {
     return [...this.users];
+  }
+
+  async search(input: SearchUsersInput): Promise<User[]> {
+    let results = [...this.users];
+
+    if (input.keyword) {
+      const keyword = input.keyword.toLowerCase();
+      results = results.filter(
+        (user) =>
+          user.name.toLowerCase().includes(keyword) ||
+          user.email.toLowerCase().includes(keyword) ||
+          (user.department && user.department.toLowerCase().includes(keyword))
+      );
+    }
+
+    if (input.role) {
+      results = results.filter((user) => user.role === input.role);
+    }
+
+    return results;
   }
 
   async create(data: CreateUserInput): Promise<User> {
@@ -218,5 +239,85 @@ describe("User use cases", () => {
     const deleteUseCase = new DeleteUserUseCase(repo);
 
     await expect(deleteUseCase.execute(randomUUID())).rejects.toThrowError(/USER_NOT_FOUND/);
+  });
+
+  describe("search functionality", () => {
+    beforeEach(async () => {
+      const createUseCase = new CreateUserUseCase(repo);
+      await createUseCase.execute({
+        email: "alice@example.com",
+        name: "Alice Smith",
+        role: USER_ROLES.ADMIN,
+        status: USER_STATUSES.ACTIVE,
+        department: "Engineering",
+        image: null
+      });
+      await createUseCase.execute({
+        email: "bob@example.com",
+        name: "Bob Jones",
+        role: USER_ROLES.USER,
+        status: USER_STATUSES.ACTIVE,
+        department: "Sales",
+        image: null
+      });
+      await createUseCase.execute({
+        email: "charlie@example.com",
+        name: "Charlie Brown",
+        role: USER_ROLES.MANAGER,
+        status: USER_STATUSES.ACTIVE,
+        department: "Engineering",
+        image: null
+      });
+    });
+
+    it("searches users by keyword (name)", async () => {
+      const listUseCase = new ListUsersUseCase(repo);
+      const users = await listUseCase.execute({ keyword: "alice" });
+
+      expect(users).toHaveLength(1);
+      expect(users[0]?.name).toBe("Alice Smith");
+    });
+
+    it("searches users by keyword (email)", async () => {
+      const listUseCase = new ListUsersUseCase(repo);
+      const users = await listUseCase.execute({ keyword: "bob@" });
+
+      expect(users).toHaveLength(1);
+      expect(users[0]?.email).toBe("bob@example.com");
+    });
+
+    it("searches users by keyword (department)", async () => {
+      const listUseCase = new ListUsersUseCase(repo);
+      const users = await listUseCase.execute({ keyword: "engineering" });
+
+      expect(users).toHaveLength(2);
+      expect(users.map(u => u.name).sort()).toEqual(["Alice Smith", "Charlie Brown"]);
+    });
+
+    it("filters users by role", async () => {
+      const listUseCase = new ListUsersUseCase(repo);
+      const users = await listUseCase.execute({ role: USER_ROLES.ADMIN });
+
+      expect(users).toHaveLength(1);
+      expect(users[0]?.role).toBe(USER_ROLES.ADMIN);
+    });
+
+    it("combines keyword and role filters", async () => {
+      const listUseCase = new ListUsersUseCase(repo);
+      const users = await listUseCase.execute({ 
+        keyword: "engineering",
+        role: USER_ROLES.MANAGER
+      });
+
+      expect(users).toHaveLength(1);
+      expect(users[0]?.name).toBe("Charlie Brown");
+    });
+
+    it("returns all users when no filters provided", async () => {
+      const listUseCase = new ListUsersUseCase(repo);
+      const users = await listUseCase.execute();
+
+      expect(users).toHaveLength(3);
+    });
   });
 });

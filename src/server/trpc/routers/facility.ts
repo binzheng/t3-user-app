@@ -10,7 +10,7 @@ import { ListFacilitiesUseCase } from "@/server/application/use-cases/facility/l
 import { UpdateFacilityUseCase } from "@/server/application/use-cases/facility/update-facility";
 import { DeactivateFacilityUseCase } from "@/server/application/use-cases/facility/deactivate-facility";
 import { createTRPCRouter, publicProcedure } from "../trpc";
-import { TRPCError } from "@trpc/server";
+import { handleUseCaseError } from "../utils/error-handler";
 
 const categoryEnum = z.enum(Object.values(FACILITY_CATEGORIES) as [FacilityCategory, ...FacilityCategory[]]);
 const statusEnum = z.enum(Object.values(FACILITY_STATUSES) as [FacilityStatus, ...FacilityStatus[]]);
@@ -200,10 +200,20 @@ const deactivateFacilitySchema = z.object({
   endDate: optionalDate(true)
 });
 
+const listFacilitiesSchema = z.object({
+  keyword: z.string().optional(),
+  category: z.union([z.literal("ALL"), categoryEnum]).optional(),
+  status: z.union([z.literal("ALL"), statusEnum]).optional()
+});
+
 export const facilityRouter = createTRPCRouter({
-  list: publicProcedure.query(async ({ ctx }) => {
+  list: publicProcedure.input(listFacilitiesSchema).query(async ({ ctx, input }) => {
     const useCase = new ListFacilitiesUseCase(ctx.facilityRepo);
-    return useCase.execute();
+    return useCase.execute({
+      keyword: input.keyword,
+      category: input.category === "ALL" ? undefined : input.category,
+      status: input.status === "ALL" ? undefined : input.status
+    });
   }),
   create: publicProcedure.input(createFacilitySchema).mutation(async ({ ctx, input }) => {
     const useCase = new CreateFacilityUseCase(ctx.facilityRepo);
@@ -239,13 +249,7 @@ export const facilityRouter = createTRPCRouter({
         billingCode: input.billingCode ?? undefined
       });
     } catch (error) {
-      if (error instanceof Error && error.message === "FACILITY_CODE_EXISTS") {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "同じ施設コードのレコードが既に存在します"
-        });
-      }
-      throw error;
+      handleUseCaseError(error);
     }
   }),
   update: publicProcedure.input(updateFacilitySchema).mutation(async ({ ctx, input }) => {
@@ -280,16 +284,7 @@ export const facilityRouter = createTRPCRouter({
         billingCode: input.billingCode
       });
     } catch (error) {
-      if (error instanceof Error && error.message === "FACILITY_NOT_FOUND") {
-        throw new TRPCError({ code: "NOT_FOUND", message: "施設が見つかりません" });
-      }
-      if (error instanceof Error && error.message === "FACILITY_CODE_EXISTS") {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "同じ施設コードのレコードが既に存在します"
-        });
-      }
-      throw error;
+      handleUseCaseError(error);
     }
   }),
   deactivate: publicProcedure.input(deactivateFacilitySchema).mutation(async ({ ctx, input }) => {
@@ -297,10 +292,7 @@ export const facilityRouter = createTRPCRouter({
     try {
       return await useCase.execute(input.id, input.endDate ?? null);
     } catch (error) {
-      if (error instanceof Error && error.message === "FACILITY_NOT_FOUND") {
-        throw new TRPCError({ code: "NOT_FOUND", message: "施設が見つかりません" });
-      }
-      throw error;
+      handleUseCaseError(error);
     }
   })
 });

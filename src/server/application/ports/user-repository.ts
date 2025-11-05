@@ -1,8 +1,14 @@
-import type { User } from "@/domain/entities/user";
+import type { User, UserRole } from "@/domain/entities/user";
+
+export interface SearchUsersInput {
+  keyword?: string;
+  role?: UserRole;
+}
 
 export interface UserRepository {
   findById(id: string): Promise<User | null>;
   findAll(): Promise<User[]>;
+  search(input: SearchUsersInput): Promise<User[]>;
   create(data: CreateUserInput): Promise<User>;
   update(id: string, data: UpdateUserInput): Promise<User>;
   delete(id: string): Promise<void>;

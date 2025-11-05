@@ -8,7 +8,8 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
-    environmentMatchGlobs: [["tests/frontend/**", "jsdom"]]
+    environmentMatchGlobs: [["tests/frontend/**", "jsdom"]],
+    setupFiles: ["./vitest.setup.ts"]
   },
   resolve: {
     alias: {
@@ -17,7 +18,8 @@ export default defineConfig({
       "@/domain": resolveFromRoot("src/domain"),
       "@/application": resolveFromRoot("src/application"),
       "@/infrastructure": resolveFromRoot("src/infrastructure"),
-      "@/server": resolveFromRoot("src/server")
+      "@/server": resolveFromRoot("src/server"),
+      "@": resolveFromRoot("src")
     }
   }
 });

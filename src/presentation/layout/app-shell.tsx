@@ -1,105 +1,176 @@
 "use client";
 
-import { ReactNode, useMemo, useState } from "react";
+import { ReactNode, useState, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  AppBar,
   Avatar,
   Box,
   Button,
-  Divider,
   Drawer,
   IconButton,
   List,
+  ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Stack,
-  Typography
+  Toolbar,
+  Typography,
+  useMediaQuery,
+  useTheme
 } from "@mui/material";
-import DashboardIcon from "@mui/icons-material/Dashboard";
+import MenuIcon from "@mui/icons-material/Menu";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import GroupsIcon from "@mui/icons-material/Groups";
 import WarehouseIcon from "@mui/icons-material/Warehouse";
-import LogoutIcon from "@mui/icons-material/Logout";
-import MenuIcon from "@mui/icons-material/Menu";
-
-const NAV_WIDTH = 240;
+import DashboardIcon from "@mui/icons-material/Dashboard";
 
 interface AppShellProps {
   children: ReactNode;
   currentUserName?: string;
+  onLogout?: () => void;
 }
 
-const navItems = [
-  {
-    label: "ユーザー管理",
-    href: "/",
-    icon: <GroupsIcon fontSize="small" />
-  },
-  {
-    label: "施設マスタ",
-    href: "/facilities",
-    icon: <WarehouseIcon fontSize="small" />
-  }
-] as const;
+type NavItem = {
+  label: string;
+  icon: ReactNode;
+  href: string;
+};
 
-export const AppShell = ({ children, currentUserName = "管理者 太郎" }: AppShellProps) => {
+const NAV_ITEMS: NavItem[] = [
+  { label: "ユーザー管理", icon: <GroupsIcon />, href: "/" },
+  { label: "施設マスタ", icon: <WarehouseIcon />, href: "/facilities" }
+];
+
+export const AppShell = ({ children, currentUserName = "管理者 太郎", onLogout }: AppShellProps) => {
   const pathname = usePathname();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  const selectedMap = useMemo(() => {
-    return navItems.reduce<Record<string, boolean>>((acc, item) => {
-      const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-      acc[item.href] = active;
-      return acc;
-    }, {});
-  }, [pathname]);
+  const [desktopOpen, setDesktopOpen] = useState(true);
 
   const handleDrawerToggle = () => {
-    setMobileOpen((prev) => !prev);
+    if (isMobile) {
+      setMobileOpen(!mobileOpen);
+    } else {
+      setDesktopOpen(!desktopOpen);
+    }
   };
 
-  const handleCloseDrawer = () => setMobileOpen(false);
+  const handleMenuClick = () => {
+    if (isMobile) {
+      setMobileOpen(false);
+    }
+  };
 
-  const navigation = (
-    <Stack height="100%" spacing={2} py={3}>
-      <Stack direction="row" spacing={1} alignItems="center" px={3}>
-        <Avatar sx={{ bgcolor: "primary.main", width: 36, height: 36 }}>
-          <DashboardIcon fontSize="small" />
-        </Avatar>
-        <Typography variant="subtitle1" fontWeight="bold">
-          管理コンソール
-        </Typography>
-      </Stack>
+  const isActive = (href: string) => {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
-      <Divider />
+  const drawerWidth = 240;
+  const collapsedDrawerWidth = 64;
 
-      <List sx={{ flexGrow: 1 }}>
-        {navItems.map((item) => (
-          <ListItemButton
-            key={item.href}
-            component={Link}
-            href={item.href}
-            selected={selectedMap[item.href]}
-            onClick={handleCloseDrawer}
-          >
-            <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItemButton>
-        ))}
-      </List>
-
-      <Box px={3}>
-        <Typography variant="caption" color="text.secondary">
-          バージョン 1.0.0
-        </Typography>
+  const drawerContent = (
+    <Box>
+      <Box sx={{ p: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <DashboardIcon color="primary" />
+          {(isMobile || desktopOpen) && (
+            <Typography variant="h6" fontWeight="bold">
+              業務管理
+            </Typography>
+          )}
+        </Box>
+        {!isMobile && (
+          <IconButton onClick={handleDrawerToggle} size="small">
+            <ChevronLeftIcon />
+          </IconButton>
+        )}
       </Box>
-    </Stack>
+      <List>
+        {NAV_ITEMS.map((item) => {
+          const active = isActive(item.href);
+          return (
+            <ListItem key={item.label} disablePadding>
+              <ListItemButton
+                component={Link}
+                href={item.href}
+                selected={active}
+                onClick={handleMenuClick}
+                sx={{
+                  justifyContent: (isMobile || desktopOpen) ? "initial" : "center",
+                  px: isMobile || desktopOpen ? 2.5 : 1,
+                  "&.Mui-selected": {
+                    bgcolor: "primary.main",
+                    color: "primary.contrastText",
+                    "&:hover": {
+                      bgcolor: "primary.dark"
+                    },
+                    "& .MuiListItemIcon-root": {
+                      color: "primary.contrastText"
+                    }
+                  }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: isMobile || desktopOpen ? 40 : 0, justifyContent: "center" }}>
+                  {item.icon}
+                </ListItemIcon>
+                {(isMobile || desktopOpen) && <ListItemText primary={item.label} />}
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
+      </List>
+    </Box>
   );
 
   return (
-    <Box display="flex" minHeight="100vh" bgcolor="background.default" color="text.primary">
-      <Box component="nav" sx={{ width: { md: NAV_WIDTH }, flexShrink: { md: 0 } }} aria-label="サイトメニュー">
+    <Box sx={{ display: "flex", minHeight: "100vh" }}>
+      <AppBar
+        position="fixed"
+        sx={{
+          zIndex: (theme) => theme.zIndex.drawer + 1
+        }}
+      >
+        <Toolbar>
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={handleDrawerToggle}
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton>
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+            業務管理ダッシュボード
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <Typography variant="body2">{currentUserName}</Typography>
+            <Button
+              color="inherit"
+              variant="outlined"
+              size="small"
+              onClick={onLogout}
+              sx={{ borderColor: "rgba(255,255,255,0.5)" }}
+            >
+              ログアウト
+            </Button>
+          </Box>
+        </Toolbar>
+      </AppBar>
+
+      <Box
+        component="nav"
+        sx={{ 
+          width: { md: desktopOpen ? drawerWidth : collapsedDrawerWidth },
+          flexShrink: { md: 0 },
+          transition: theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          })
+        }}
+      >
         <Drawer
           variant="temporary"
           open={mobileOpen}
@@ -109,82 +180,48 @@ export const AppShell = ({ children, currentUserName = "管理者 太郎" }: App
           }}
           sx={{
             display: { xs: "block", md: "none" },
-            "& .MuiDrawer-paper": { width: NAV_WIDTH }
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: drawerWidth
+            }
           }}
         >
-          {navigation}
+          {drawerContent}
         </Drawer>
-        <Box
+        <Drawer
+          variant="permanent"
           sx={{
             display: { xs: "none", md: "block" },
-            width: NAV_WIDTH,
-            flexShrink: 0,
-            borderRight: (theme) => `1px solid ${theme.palette.divider}`,
-            bgcolor: "background.paper",
-            position: "sticky",
-            top: 0,
-            height: "100vh"
+            "& .MuiDrawer-paper": {
+              boxSizing: "border-box",
+              width: desktopOpen ? drawerWidth : collapsedDrawerWidth,
+              transition: theme.transitions.create('width', {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
+              overflowX: 'hidden'
+            }
           }}
+          open
         >
-          {navigation}
-        </Box>
+          {drawerContent}
+        </Drawer>
       </Box>
 
-      <Box flexGrow={1} display="flex" flexDirection="column" minHeight="100vh">
-        <Box
-          component="header"
-          px={{ xs: 2, md: 4 }}
-          py={2}
-          sx={{
-            borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-            bgcolor: "background.paper",
-            position: "sticky",
-            top: 0,
-            zIndex: (theme) => theme.zIndex.appBar
-          }}
-        >
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-              <IconButton
-                aria-label="メニューを開く"
-                edge="start"
-                onClick={handleDrawerToggle}
-                sx={{ display: { xs: "inline-flex", md: "none" } }}
-              >
-                <MenuIcon />
-              </IconButton>
-              <IconButton aria-label="dashboard" edge="start" sx={{ display: { xs: "none", md: "inline-flex" } }}>
-                <DashboardIcon />
-              </IconButton>
-              <Typography variant="h6" component="div">
-                業務管理ダッシュボード
-              </Typography>
-            </Stack>
-
-            <Stack direction="row" alignItems="center" spacing={2}>
-              <Stack spacing={0} textAlign="right">
-                <Typography variant="body2" fontWeight="bold">
-                  {currentUserName}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  ログイン中
-                </Typography>
-              </Stack>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<LogoutIcon fontSize="small" />}
-                sx={{ whiteSpace: "nowrap" }}
-              >
-                ログアウト
-              </Button>
-            </Stack>
-          </Stack>
-        </Box>
-
-        <Box component="main" flexGrow={1} px={{ xs: 2, md: 4 }} py={3}>
-          {children}
-        </Box>
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          p: 3,
+          width: { md: `calc(100% - ${desktopOpen ? drawerWidth : collapsedDrawerWidth}px)` },
+          mt: 8,
+          transition: theme.transitions.create(['width', 'margin'], {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          })
+        }}
+      >
+        {children}
       </Box>
     </Box>
   );

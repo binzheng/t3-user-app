@@ -194,6 +194,17 @@ export const createDefaultValues: Partial<CreateFacilityFormValues> = {
   isIntegrated: false
 };
 
+const toDateInputString = (value: unknown) => {
+  if (!value) return "";
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10);
+  }
+  if (typeof value === "string" && value.length >= 10) {
+    return value.slice(0, 10);
+  }
+  return "";
+};
+
 export const toEditFormValues = (facility: Facility) => ({
   name: facility.name,
   nameKana: facility.nameKana ?? "",
@@ -208,8 +219,8 @@ export const toEditFormValues = (facility: Facility) => ({
   contactName: facility.contactName ?? "",
   contactPhone: facility.contactPhone ?? "",
   contactEmail: facility.contactEmail ?? "",
-  startDate: facility.startDate ? facility.startDate.toISOString().slice(0, 10) : "",
-  endDate: facility.endDate ? facility.endDate.toISOString().slice(0, 10) : "",
+  startDate: toDateInputString(facility.startDate),
+  endDate: toDateInputString(facility.endDate),
   capacity: facility.capacity != null ? facility.capacity.toString() : "",
   note: facility.note ?? "",
   imageUrl: facility.imageUrl ?? "",

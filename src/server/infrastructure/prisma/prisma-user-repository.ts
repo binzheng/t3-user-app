@@ -3,7 +3,8 @@ import type { User, UserRole, UserStatus } from "@/domain/entities/user";
 import type {
   CreateUserInput,
   UpdateUserInput,
-  UserRepository
+  UserRepository,
+  SearchUsersInput
 } from "../../application/ports/user-repository";
 
 const toDomain = (user: PrismaUser): User => ({
@@ -37,6 +38,29 @@ export class PrismaUserRepository implements UserRepository {
 
   async findAll(): Promise<User[]> {
     const users = await this.prisma.user.findMany({ orderBy: { createdAt: "desc" } });
+    return users.map(toDomain);
+  }
+
+  async search(input: SearchUsersInput): Promise<User[]> {
+    const where: Prisma.UserWhereInput = {};
+
+    if (input.keyword) {
+      where.OR = [
+        { name: { contains: input.keyword, mode: "insensitive" } },
+        { email: { contains: input.keyword, mode: "insensitive" } },
+        { department: { contains: input.keyword, mode: "insensitive" } }
+      ];
+    }
+
+    if (input.role) {
+      where.role = input.role;
+    }
+
+    const users = await this.prisma.user.findMany({
+      where,
+      orderBy: { createdAt: "desc" }
+    });
+    
     return users.map(toDomain);
   }
 

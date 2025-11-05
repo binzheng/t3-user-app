@@ -26,3 +26,14 @@ pnpm dev:server       # 独立した Fastify + tRPC サーバーを起動（外�
 - `docker` – Podman Compose 用設定。
 
 詳細は `docs/project-plan.md`、手動検証手順は `docs/manual-verification.md` を参照してください。
+
+## CI/CD（GitHub Actions + Vercel + Neon）
+
+- GitHub Actions のワークフローを `.github/workflows/ci-cd.yml` に追加しました。`main` ブランチへの PR / push で lint と単体テスト、`main` に push されたタイミングで Vercel への本番デプロイを実行します。
+- テストジョブではコンテナ上の PostgreSQL（postgres:16）にマイグレーションを適用してから `pnpm lint` / `pnpm test` を実行します。
+- デプロイジョブは以下の GitHub Secrets を利用します。Vercel 側にも同じ値（`DATABASE_URL` など）を Environment Variables として設定してください。
+  - `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` – Vercel CLI 用の認証情報。
+  - `NEON_DATABASE_URL` – Neon の接続文字列（マイグレーション実行用。`sslmode=require` を付けてください）。
+  - `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `NEXT_PUBLIC_API_URL`（任意）– NextAuth / フロントエンド用の環境変数。
+- Neon を利用する場合は「Branch > Connection String」からダイレクト接続用の URI をコピーし、上記 `NEON_DATABASE_URL` に設定してください。プール接続を使う場合は `?sslmode=require` を付与したダイレクト接続文字列を推奨します。
+- ワークフローは `workflow_dispatch` にも対応しているので、GitHub Actions から手動実行することも可能です。

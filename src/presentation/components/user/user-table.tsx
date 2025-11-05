@@ -7,11 +7,12 @@ import type { User, UserRole } from "@/domain/entities/user";
 import { trpc } from "@/infrastructure/trpc/client";
 import { UserTableFilters } from "./user-table/user-table.filters";
 import { CSV_HEADERS, TABLE_ROWS_PER_PAGE_OPTIONS } from "./user-table/user-table.consts";
-import { buildCsvContent, filterUsers, paginate } from "./user-table/user-table.utils";
+import { buildCsvContent, paginate } from "./user-table/user-table.utils";
 import { UserCreateDialog } from "./user-table/user-create-dialog";
 import { UserEditDialog } from "./user-table/user-edit-dialog";
 import { UserTableView } from "./user-table/user-table.view";
 import type { CreateUserFormValues, EditUserFormValues } from "./user-table/user-table.validation";
+import { GlobalLoading, TableSkeleton } from "@/presentation/components/common";
 
 const toOptional = (value?: string) => {
   if (value == null) return undefined;
@@ -30,30 +31,42 @@ const TABLE_ROWS_PER_PAGE_DEFAULT = TABLE_ROWS_PER_PAGE_OPTIONS[1] ?? 10;
 
 export const UserTable = () => {
   const utils = trpc.useUtils();
-  const { data: users, isLoading, isFetching, refetch } = trpc.user.list.useQuery();
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [searchRole, setSearchRole] = useState<"ALL" | UserRole>("ALL");
+  const [globalLoading, setGlobalLoading] = useState(false);
+  
+  const { data: users, isLoading, isFetching, refetch } = trpc.user.list.useQuery({
+    keyword: searchKeyword || undefined,
+    role: searchRole === "ALL" ? undefined : searchRole
+  });
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<User | null>(null);
-  const [searchKeyword, setSearchKeyword] = useState("");
-  const [searchRole, setSearchRole] = useState<"ALL" | UserRole>("ALL");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(TABLE_ROWS_PER_PAGE_DEFAULT);
 
   const createMutation = trpc.user.create.useMutation({
+    onMutate: () => setGlobalLoading(true),
     onSuccess: async () => {
       await utils.user.list.invalidate();
-    }
+      setCreateOpen(false);
+    },
+    onSettled: () => setGlobalLoading(false)
   });
   const updateMutation = trpc.user.update.useMutation({
+    onMutate: () => setGlobalLoading(true),
     onSuccess: async () => {
       await utils.user.list.invalidate();
       setEditTarget(null);
-    }
+    },
+    onSettled: () => setGlobalLoading(false)
   });
   const deleteMutation = trpc.user.delete.useMutation({
+    onMutate: () => setGlobalLoading(true),
     onSuccess: async () => {
       await utils.user.list.invalidate();
-    }
+    },
+    onSettled: () => setGlobalLoading(false)
   });
 
   const sortedUsers = useMemo(() => {
@@ -63,14 +76,9 @@ export const UserTable = () => {
     return [...users].sort((a, b) => a.name.localeCompare(b.name));
   }, [users]);
 
-  const filteredUsers = useMemo(
-    () => filterUsers(sortedUsers, searchKeyword, searchRole),
-    [sortedUsers, searchKeyword, searchRole]
-  );
-
   const paginatedUsers = useMemo(
-    () => paginate(filteredUsers, page, rowsPerPage),
-    [filteredUsers, page, rowsPerPage]
+    () => paginate(sortedUsers, page, rowsPerPage),
+    [sortedUsers, page, rowsPerPage]
   );
 
   useEffect(() => {
@@ -87,8 +95,8 @@ export const UserTable = () => {
   };
 
   const handleDownloadCsv = () => {
-    if (filteredUsers.length === 0) return;
-    const rows = filteredUsers.map((user) => [
+    if (!sortedUsers || sortedUsers.length === 0) return;
+    const rows = sortedUsers.map((user) => [
       user.name,
       user.email,
       user.role,
@@ -155,7 +163,7 @@ export const UserTable = () => {
               <Button variant="outlined" startIcon={<RefreshIcon />} onClick={() => refetch()} disabled={isFetching}>
                 再読み込み
               </Button>
-              <Button variant="outlined" onClick={handleDownloadCsv} disabled={filteredUsers.length === 0}>
+              <Button variant="outlined" onClick={handleDownloadCsv} disabled={!sortedUsers || sortedUsers.length === 0}>
                 CSV ダウンロード
               </Button>
               <Button variant="contained" onClick={() => setCreateOpen(true)}>
@@ -172,18 +180,24 @@ export const UserTable = () => {
           />
         </Stack>
 
-        <UserTableView
-          users={paginatedUsers}
-          totalCount={filteredUsers.length}
-          page={page}
-          rowsPerPage={rowsPerPage}
-          isLoading={isLoading}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          onEdit={(user) => setEditTarget(user)}
-          onDelete={handleDelete}
-        />
+        {isLoading ? (
+          <TableSkeleton rows={rowsPerPage} columns={7} />
+        ) : (
+          <UserTableView
+            users={paginatedUsers}
+            totalCount={sortedUsers.length}
+            page={page}
+            rowsPerPage={rowsPerPage}
+            isLoading={false}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            onEdit={(user) => setEditTarget(user)}
+            onDelete={handleDelete}
+          />
+        )}
       </Stack>
+
+      <GlobalLoading open={globalLoading} />
 
       <UserCreateDialog
         open={createOpen}

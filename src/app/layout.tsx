@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { AppThemeProvider } from "@/presentation/theme/app-theme-provider";
 import { TRPCProvider } from "@/infrastructure/trpc/provider";
 import { AppShell } from "@/presentation/layout/app-shell";
+import { ErrorBoundary } from "@/presentation/components/common/error-boundary";
 
 export const metadata = {
   title: "ユーザー管理アプリ",
@@ -12,11 +13,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja">
       <body suppressHydrationWarning>
-        <TRPCProvider>
-          <AppThemeProvider>
-            <AppShell>{children}</AppShell>
-          </AppThemeProvider>
-        </TRPCProvider>
+        <ErrorBoundary>
+          <TRPCProvider>
+            <AppThemeProvider>
+              <AppShell>{children}</AppShell>
+            </AppThemeProvider>
+          </TRPCProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

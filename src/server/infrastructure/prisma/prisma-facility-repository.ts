@@ -3,7 +3,8 @@ import type { Facility, FacilityCategory, FacilityStatus } from "@/domain/entiti
 import type {
   CreateFacilityInput,
   FacilityRepository,
-  UpdateFacilityInput
+  UpdateFacilityInput,
+  SearchFacilitiesInput
 } from "../../application/ports/facility-repository";
 
 const toDomain = (facility: PrismaFacility): Facility => ({
@@ -55,6 +56,38 @@ export class PrismaFacilityRepository implements FacilityRepository {
         { code: "asc" }
       ]
     });
+    return facilities.map(toDomain);
+  }
+
+  async search(input: SearchFacilitiesInput): Promise<Facility[]> {
+    const where: Prisma.FacilityWhereInput = {};
+
+    if (input.keyword) {
+      where.OR = [
+        { name: { contains: input.keyword, mode: "insensitive" } },
+        { code: { contains: input.keyword, mode: "insensitive" } },
+        { prefecture: { contains: input.keyword, mode: "insensitive" } },
+        { city: { contains: input.keyword, mode: "insensitive" } },
+        { addressLine1: { contains: input.keyword, mode: "insensitive" } }
+      ];
+    }
+
+    if (input.category) {
+      where.category = input.category;
+    }
+
+    if (input.status) {
+      where.status = input.status;
+    }
+
+    const facilities = await this.prisma.facility.findMany({
+      where,
+      orderBy: [
+        { displayOrder: "asc" },
+        { code: "asc" }
+      ]
+    });
+    
     return facilities.map(toDomain);
   }
 

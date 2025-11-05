@@ -33,7 +33,7 @@ import type { Facility, FacilityCategory, FacilityStatus } from "@/domain/entiti
 import { trpc } from "@/infrastructure/trpc/client";
 import { FacilityTableFilters } from "./facility-table/facility-table.filters";
 import { CSV_HEADERS, TABLE_ROWS_PER_PAGE_OPTIONS } from "./facility-table/facility-table.consts";
-import { buildCsvContent, filterFacilities, paginate } from "./facility-table/facility-table.utils";
+import { buildCsvContent, paginate } from "./facility-table/facility-table.utils";
 import {
   type CreateFacilityFormValues,
   type EditFacilityFormValues,
@@ -45,6 +45,7 @@ import {
   statusOptions,
   toEditFormValues
 } from "./facility-table/facility-table.validation";
+import { GlobalLoading, TableSkeleton } from "@/presentation/components/common";
 
 const TABLE_ROWS_PER_PAGE_DEFAULT = TABLE_ROWS_PER_PAGE_OPTIONS[1] ?? 10;
 
@@ -92,13 +93,19 @@ const toDateOrNull = (value?: string | null) => {
 
 export const FacilityTable = () => {
   const utils = trpc.useUtils();
-  const { data: facilities, isLoading, isFetching, refetch } = trpc.facility.list.useQuery();
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<Facility | null>(null);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [searchCategory, setSearchCategory] = useState<"ALL" | FacilityCategory>("ALL");
   const [searchStatus, setSearchStatus] = useState<"ALL" | FacilityStatus>("ALL");
+  const [globalLoading, setGlobalLoading] = useState(false);
+  
+  const { data: facilities, isLoading, isFetching, refetch } = trpc.facility.list.useQuery({
+    keyword: searchKeyword || undefined,
+    category: searchCategory === "ALL" ? undefined : searchCategory,
+    status: searchStatus === "ALL" ? undefined : searchStatus
+  });
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Facility | null>(null);
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(TABLE_ROWS_PER_PAGE_DEFAULT);
 
@@ -135,24 +142,30 @@ export const FacilityTable = () => {
   }, [editTarget, resetEditForm]);
 
   const createMutation = trpc.facility.create.useMutation({
+    onMutate: () => setGlobalLoading(true),
     onSuccess: async () => {
       await utils.facility.list.invalidate();
       setCreateOpen(false);
       resetCreateForm(createDefaultValues);
-    }
+    },
+    onSettled: () => setGlobalLoading(false)
   });
 
   const updateMutation = trpc.facility.update.useMutation({
+    onMutate: () => setGlobalLoading(true),
     onSuccess: async () => {
       await utils.facility.list.invalidate();
       setEditTarget(null);
-    }
+    },
+    onSettled: () => setGlobalLoading(false)
   });
 
   const deactivateMutation = trpc.facility.deactivate.useMutation({
+    onMutate: () => setGlobalLoading(true),
     onSuccess: async () => {
       await utils.facility.list.invalidate();
-    }
+    },
+    onSettled: () => setGlobalLoading(false)
   });
 
   const sortedFacilities = useMemo(() => {
@@ -162,14 +175,9 @@ export const FacilityTable = () => {
     return [...facilities].sort((a, b) => a.code.localeCompare(b.code));
   }, [facilities]);
 
-  const filteredFacilities = useMemo(
-    () => filterFacilities(sortedFacilities, searchKeyword, searchCategory, searchStatus),
-    [sortedFacilities, searchKeyword, searchCategory, searchStatus]
-  );
-
   const paginatedFacilities = useMemo(
-    () => paginate(filteredFacilities, page, rowsPerPage),
-    [filteredFacilities, page, rowsPerPage]
+    () => paginate(sortedFacilities, page, rowsPerPage),
+    [sortedFacilities, page, rowsPerPage]
   );
 
   useEffect(() => {
@@ -186,8 +194,8 @@ export const FacilityTable = () => {
   };
 
   const handleDownloadCsv = () => {
-    if (filteredFacilities.length === 0) return;
-    const rows = filteredFacilities.map((facility) => [
+    if (!sortedFacilities || sortedFacilities.length === 0) return;
+    const rows = sortedFacilities.map((facility) => [
       facility.code,
       facility.name,
       facility.category,
@@ -294,7 +302,7 @@ export const FacilityTable = () => {
             <Button variant="outlined" startIcon={<RefreshIcon />} onClick={() => refetch()} disabled={isFetching}>
               再読み込み
             </Button>
-            <Button variant="outlined" onClick={handleDownloadCsv} disabled={filteredFacilities.length === 0}>
+            <Button variant="outlined" onClick={handleDownloadCsv} disabled={!sortedFacilities || sortedFacilities.length === 0}>
               CSV ダウンロード
             </Button>
             <Button variant="contained" onClick={handleOpenCreate}>
@@ -313,8 +321,8 @@ export const FacilityTable = () => {
       </Stack>
 
       {isLoading ? (
-        <Typography>読み込み中...</Typography>
-      ) : filteredFacilities.length === 0 ? (
+        <TableSkeleton rows={rowsPerPage} columns={8} />
+      ) : sortedFacilities.length === 0 ? (
         <Paper variant="outlined" sx={{ p: 4 }}>
           <Typography align="center">条件に一致する施設が見つかりません。</Typography>
         </Paper>
@@ -369,7 +377,7 @@ export const FacilityTable = () => {
           </Table>
           <TablePagination
             component="div"
-            count={filteredFacilities.length}
+            count={sortedFacilities.length}
             page={page}
             onPageChange={handleChangePage}
             rowsPerPage={rowsPerPage}

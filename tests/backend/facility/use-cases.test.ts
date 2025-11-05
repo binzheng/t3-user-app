@@ -8,12 +8,13 @@ import {
 import type {
   CreateFacilityInput,
   FacilityRepository,
-  UpdateFacilityInput
+  UpdateFacilityInput,
+  SearchFacilitiesInput
 } from "@/server/application/ports/facility-repository";
-import { CreateFacilityUseCase } from "@/server/application/use-cases/create-facility";
-import { ListFacilitiesUseCase } from "@/server/application/use-cases/list-facilities";
-import { UpdateFacilityUseCase } from "@/server/application/use-cases/update-facility";
-import { DeactivateFacilityUseCase } from "@/server/application/use-cases/deactivate-facility";
+import { CreateFacilityUseCase } from "@/server/application/use-cases/facility/create-facility";
+import { ListFacilitiesUseCase } from "@/server/application/use-cases/facility/list-facilities";
+import { UpdateFacilityUseCase } from "@/server/application/use-cases/facility/update-facility";
+import { DeactivateFacilityUseCase } from "@/server/application/use-cases/facility/deactivate-facility";
 
 class InMemoryFacilityRepository implements FacilityRepository {
   private facilities: Facility[] = [];
@@ -28,6 +29,32 @@ class InMemoryFacilityRepository implements FacilityRepository {
 
   async findAll(): Promise<Facility[]> {
     return [...this.facilities];
+  }
+
+  async search(input: SearchFacilitiesInput): Promise<Facility[]> {
+    let results = [...this.facilities];
+
+    if (input.keyword) {
+      const keyword = input.keyword.toLowerCase();
+      results = results.filter(
+        (facility) =>
+          facility.name.toLowerCase().includes(keyword) ||
+          facility.code.toLowerCase().includes(keyword) ||
+          (facility.prefecture && facility.prefecture.toLowerCase().includes(keyword)) ||
+          (facility.city && facility.city.toLowerCase().includes(keyword)) ||
+          (facility.addressLine1 && facility.addressLine1.toLowerCase().includes(keyword))
+      );
+    }
+
+    if (input.category) {
+      results = results.filter((facility) => facility.category === input.category);
+    }
+
+    if (input.status) {
+      results = results.filter((facility) => facility.status === input.status);
+    }
+
+    return results;
   }
 
   async create(data: CreateFacilityInput): Promise<Facility> {
@@ -231,5 +258,97 @@ describe("Facility use cases", () => {
     const facilities = await listUseCase.execute();
     expect(facilities).toHaveLength(2);
     expect(facilities.map((facility) => facility.code)).toEqual(["FC-001", "FC-002"]);
+  });
+
+  describe("search functionality", () => {
+    beforeEach(async () => {
+      const createUseCase = new CreateFacilityUseCase(repo);
+      await createUseCase.execute({
+        code: "HQ-001",
+        name: "本社ビル",
+        category: FACILITY_CATEGORIES.HEAD,
+        status: FACILITY_STATUSES.ACTIVE,
+        prefecture: "東京都",
+        city: "千代田区",
+        addressLine1: "丸の内1-1-1"
+      });
+      await createUseCase.execute({
+        code: "BR-001",
+        name: "大阪支社",
+        category: FACILITY_CATEGORIES.BRANCH,
+        status: FACILITY_STATUSES.ACTIVE,
+        prefecture: "大阪府",
+        city: "大阪市",
+        addressLine1: "中央区本町1-1-1"
+      });
+      await createUseCase.execute({
+        code: "WH-001",
+        name: "東京倉庫",
+        category: FACILITY_CATEGORIES.WAREHOUSE,
+        status: FACILITY_STATUSES.INACTIVE,
+        prefecture: "東京都",
+        city: "江東区",
+        addressLine1: "青海1-1-1"
+      });
+    });
+
+    it("searches facilities by keyword (name)", async () => {
+      const listUseCase = new ListFacilitiesUseCase(repo);
+      const facilities = await listUseCase.execute({ keyword: "本社" });
+
+      expect(facilities).toHaveLength(1);
+      expect(facilities[0]?.name).toBe("本社ビル");
+    });
+
+    it("searches facilities by keyword (code)", async () => {
+      const listUseCase = new ListFacilitiesUseCase(repo);
+      const facilities = await listUseCase.execute({ keyword: "BR-" });
+
+      expect(facilities).toHaveLength(1);
+      expect(facilities[0]?.code).toBe("BR-001");
+    });
+
+    it("searches facilities by keyword (prefecture)", async () => {
+      const listUseCase = new ListFacilitiesUseCase(repo);
+      const facilities = await listUseCase.execute({ keyword: "東京" });
+
+      expect(facilities).toHaveLength(2);
+      const names = facilities.map(f => f.name).sort();
+      expect(names).toEqual(["本社ビル", "東京倉庫"]);
+    });
+
+    it("filters facilities by category", async () => {
+      const listUseCase = new ListFacilitiesUseCase(repo);
+      const facilities = await listUseCase.execute({ category: FACILITY_CATEGORIES.WAREHOUSE });
+
+      expect(facilities).toHaveLength(1);
+      expect(facilities[0]?.category).toBe(FACILITY_CATEGORIES.WAREHOUSE);
+    });
+
+    it("filters facilities by status", async () => {
+      const listUseCase = new ListFacilitiesUseCase(repo);
+      const facilities = await listUseCase.execute({ status: FACILITY_STATUSES.ACTIVE });
+
+      expect(facilities).toHaveLength(2);
+      facilities.forEach(f => expect(f.status).toBe(FACILITY_STATUSES.ACTIVE));
+    });
+
+    it("combines keyword, category, and status filters", async () => {
+      const listUseCase = new ListFacilitiesUseCase(repo);
+      const facilities = await listUseCase.execute({ 
+        keyword: "東京",
+        status: FACILITY_STATUSES.ACTIVE
+      });
+
+      expect(facilities).toHaveLength(1);
+      expect(facilities[0]?.name).toBe("本社ビル");
+    });
+
+    it("returns all facilities when no filters provided", async () => {
+      const listUseCase = new ListFacilitiesUseCase(repo);
+      const facilities = await listUseCase.execute();
+
+      expect(facilities).toHaveLength(3);
+    });
   });
 });

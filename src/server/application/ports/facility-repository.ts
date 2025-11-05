@@ -1,8 +1,15 @@
 import type { Facility, FacilityCategory, FacilityStatus } from "@/domain/entities/facility";
 
+export interface SearchFacilitiesInput {
+  keyword?: string;
+  category?: FacilityCategory;
+  status?: FacilityStatus;
+}
+
 export interface FacilityRepository {
   findById(id: string): Promise<Facility | null>;
   findAll(): Promise<Facility[]>;
+  search(input: SearchFacilitiesInput): Promise<Facility[]>;
   create(data: CreateFacilityInput): Promise<Facility>;
   update(id: string, data: UpdateFacilityInput): Promise<Facility>;
   deactivate(id: string, endDate?: Date | null): Promise<Facility>;
